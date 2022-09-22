@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/132abed2-63b7-496c-8bca-2bf0dc4488b7')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/132abed2-63b7-496c-8bca-2bf0dc4488b7')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2022-09-01-preview",
+      "properties": {
+        "queryFrequency": "PT1H",
+        "queryPeriod": "PT1H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "severity": "High",
+        "query": "OfficeActivity\r\n// Only admin or global-admin can disable/remove policy, but UserType Regular can change Sharing Policy (SharingPolicyChanged)\r\n// | where RecordType =~ \"ExchangeAdmin\"\r\n| where OfficeWorkload == \"SharePoint\" or OfficeWorkload == \"OneDrive\"\r\n| where Operation == \"AnonymousLinkCreated\" or Operation == \"AnonymousLinkUsed\" or Operation == \"AnonymousLinkUpdated\"\r\n| extend ClientIPOnly = case( \r\n  ClientIP has \".\", tostring(split(ClientIP,\":\")[0]), \r\n  ClientIP has \"[\", tostring(trim_start(@'[[]',tostring(split(ClientIP,\"]\")[0]))),\r\n  ClientIP\r\n)\r\n| extend Port = case(\r\n  ClientIP has \".\", (split(ClientIP,\":\")[1]),\r\n  ClientIP has \"[\", tostring(split(ClientIP,\"]:\")[1]),\r\n  ClientIP\r\n) \r\n  | summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated), OperationCount = count() by Operation, UserType, UserId, ClientIP = ClientIPOnly, Port, ResultStatus, Parameters\r\n  | extend timestamp = StartTimeUtc, AccountCustomEntity = UserId, IPCustomEntity = ClientIP",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "reopenClosedIncident": false,
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "groupByEntities": [],
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": []
+          }
+        },
+        "customDetails": {
+          "OperationCount": "OperationCount",
+          "Operation": "Operation",
+          "ResultStatus": "ResultStatus"
+        },
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "identifier": "FullName",
+                "columnName": "AccountCustomEntity"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "IPCustomEntity"
+              }
+            ]
+          }
+        ],
+        "tactics": [
+          "Persistence",
+          "DefenseEvasion",
+          "Exfiltration"
+        ],
+        "techniques": null,
+        "displayName": "Sharepoint/OneDrive anonymous link created, used, updated",
+        "enabled": false,
+        "description": "Checking OfficeActivities, SharePoint and OneDrive workloads for \"AnonymousLinkCreated\" \"AnonymousLinkUsed\" \"AnonymousLinkUpdated\"",
+        "alertRuleTemplateName": null,
+        "lastModifiedUtc": "2021-10-29T21:13:58.160679Z"
+      }
+    }
+  ]
+}
