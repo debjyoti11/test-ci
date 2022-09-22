@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/66a9d844-eb84-4ab9-8906-66303caf572f')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/66a9d844-eb84-4ab9-8906-66303caf572f')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2022-09-01-preview",
+      "properties": {
+        "queryFrequency": "PT1H",
+        "queryPeriod": "PT1H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "severity": "High",
+        "query": "OfficeActivity\r\n// Only admin or global-admin can disable/remove policy, but UserType Regular can change Sharing Policy (SharingPolicyChanged)\r\n// | where RecordType =~ \"ExchangeAdmin\"\r\n| where OfficeWorkload == \"SharePoint\" or OfficeWorkload == \"OneDrive\"\r\n| where UserType in~ (\"Admin\",\"DcAdmin\") // To be changed of UserType Regular Sharing Policy changed should be monitored as well\r\n| where Operation == \"SharingPolicyChanged\" or Operation == \"DeviceAccessPolicyChanged\" or Operation == \"NetworkAccessPolicyChanged\"\r\n| extend changedPolicy_ = tostring(parse_json(ModifiedProperties)[0].Name)\r\n| extend oldPolicyValue_ = tostring(parse_json(ModifiedProperties)[0].OldValue)\r\n| extend newPolicyValue_ = tostring(parse_json(ModifiedProperties)[0].NewValue)\r\n| extend ClientIPOnly = case( \r\n  ClientIP has \".\", tostring(split(ClientIP,\":\")[0]), \r\n  ClientIP has \"[\", tostring(trim_start(@'[[]',tostring(split(ClientIP,\"]\")[0]))),\r\n  ClientIP\r\n)\r\n| extend Port = case(\r\n  ClientIP has \".\", (split(ClientIP,\":\")[1]),\r\n  ClientIP has \"[\", tostring(split(ClientIP,\"]:\")[1]),\r\n  ClientIP\r\n) \r\n  | summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated), OperationCount = count() by Operation, UserType, UserId, ClientIP = ClientIPOnly, Port, ResultStatus, Parameters, changedPolicy_, oldPolicyValue_, newPolicyValue_\r\n  | extend timestamp = StartTimeUtc, AccountCustomEntity = UserId, IPCustomEntity = ClientIP",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "reopenClosedIncident": false,
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "groupByEntities": [],
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": []
+          }
+        },
+        "customDetails": {
+          "ChangedPolicy": "changedPolicy_",
+          "OldPolicyValue": "oldPolicyValue_",
+          "NewPolicyValue": "newPolicyValue_",
+          "OperationCount": "OperationCount",
+          "Operation": "Operation",
+          "ResultStatus": "ResultStatus"
+        },
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "identifier": "FullName",
+                "columnName": "AccountCustomEntity"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "IPCustomEntity"
+              }
+            ]
+          }
+        ],
+        "tactics": [
+          "Persistence",
+          "DefenseEvasion"
+        ],
+        "techniques": null,
+        "displayName": "Sharepoint/OneDrive policy tampering",
+        "enabled": false,
+        "description": "Checking OfficeActivities, SharePoint and OneDrive workloads for \"SharingPolicyChanged\" \"DeviceAccessPolicyChanged\" \"NetworkAccessPolicyChanged\" of Administrators",
+        "alertRuleTemplateName": null,
+        "lastModifiedUtc": "2021-10-29T21:13:58.2578808Z"
+      }
+    }
+  ]
+}
