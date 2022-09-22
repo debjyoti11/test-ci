@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/2463a40e-b64a-40c0-b195-be1ea7e52cd4')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/2463a40e-b64a-40c0-b195-be1ea7e52cd4')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2022-09-01-preview",
+      "properties": {
+        "queryFrequency": "P1D",
+        "queryPeriod": "P1D",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "severity": "High",
+        "query": "OfficeActivity\r\n// Specified Office Workloads, i.e. OneDrive, SharePoint\r\n| where OfficeWorkload in ('OneDrive', 'SharePoint')\r\n| where Operation == \"AddedToSecureLink\"\r\n// Please change out the \"damdemo.ca\" and replace with your orgs Domain\r\n| where TargetUserOrGroupType == \"Guest\" and TargetUserOrGroupName !contains \"damdemo.ca\"\r\n| extend PathUrl = strcat(Site_Url_, \"/\", SourceRelativeUrl_)\r\n| project TimeGenerated, OfficeWorkload, ItemType, ClientIP, UserId_, Site_Url_, PathUrl, SourceRelativeUrl_, SourceFileName_, TargetUserOrGroupName, TargetUserOrGroupType\r\n| extend AccountCustomEntity = UserId_\r\n| extend IPCustomEntity = ClientIP\r\n| extend URLCustomEntity = PathUrl\r\n\r\n",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "reopenClosedIncident": false,
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "groupByEntities": [],
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": []
+          }
+        },
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "identifier": "FullName",
+                "columnName": "AccountCustomEntity"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "IPCustomEntity"
+              }
+            ]
+          },
+          {
+            "entityType": "URL",
+            "fieldMappings": [
+              {
+                "identifier": "Url",
+                "columnName": "URLCustomEntity"
+              }
+            ]
+          }
+        ],
+        "tactics": [
+          "Exfiltration"
+        ],
+        "techniques": null,
+        "displayName": "SharePoint / OneDrive Files shared to an External Resource",
+        "enabled": true,
+        "description": "This Analytic Detection monitors and alerts when files are shared from SharePoint or OneDrive outside of an Organization. You will need to edit the Domain and change it to your Org(s) Domain.",
+        "alertRuleTemplateName": null,
+        "lastModifiedUtc": "2021-10-29T21:13:43.2053419Z"
+      }
+    }
+  ]
+}
