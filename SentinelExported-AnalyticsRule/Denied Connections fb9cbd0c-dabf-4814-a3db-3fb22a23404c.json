@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/fb9cbd0c-dabf-4814-a3db-3fb22a23404c')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/fb9cbd0c-dabf-4814-a3db-3fb22a23404c')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2022-09-01-preview",
+      "properties": {
+        "queryFrequency": "PT1H",
+        "queryPeriod": "P2DT1H30M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "severity": "Medium",
+        "query": "SecurityAlert | take 10",
+        "suppressionDuration": "PT1H",
+        "suppressionEnabled": true,
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "reopenClosedIncident": false,
+            "lookbackDuration": "PT5M",
+            "matchingMethod": "AllEntities",
+            "groupByEntities": [],
+            "groupByAlertDetails": null,
+            "groupByCustomDetails": null
+          }
+        },
+        "tactics": [
+          "InitialAccess",
+          "Persistence"
+        ],
+        "techniques": null,
+        "displayName": "Denied Connections fb9cbd0c-dabf-4814-a3db-3fb22a23404c",
+        "enabled": false,
+        "description": "MPO rule description",
+        "alertRuleTemplateName": null,
+        "lastModifiedUtc": "2021-06-22T15:29:45.7123521Z"
+      }
+    }
+  ]
+}
