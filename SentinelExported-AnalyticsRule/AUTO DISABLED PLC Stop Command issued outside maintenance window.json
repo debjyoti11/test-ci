@@ -1,0 +1,94 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/b8bb05c5-4bf3-4687-b3b1-b94c01e71825')]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/b8bb05c5-4bf3-4687-b3b1-b94c01e71825')]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2022-09-01-preview",
+      "properties": {
+        "queryFrequency": "PT1H",
+        "queryPeriod": "P7D",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "severity": "High",
+        "query": "let MaintWin= datatable (WinName: string, startDate: datetime, endDate: datetime, DummyJoin:string) [\r\n    'Sem1', datetime(2021-09-24,04:31:33.425Z), datetime(2021-09-27T01:00:00.15Z),\"1\",\r\n    'Sem2', datetime(2022-05-25T01:00:00.15Z), datetime(2021-05-26T01:00:00.15),\"1\",\r\n];\r\nlet PrivEscal=(SecurityAlert| where TimeGenerated > ago(5h) and AlertName == \"Malicious credential theft tool execution detected\"\r\n| extend DummyJoin2=\"1\"\r\n| extend Host_Name = tostring(parse_json(Entities)[0].FQDN)\r\n| extend LastExternalIpAddress = tostring(parse_json(Entities)[0].LastExternalIpAddress));\r\nlet StopPlc=(SecurityAlert\r\n    | where TimeGenerated > ago(7d)\r\n    | where AlertName == \"An S7 Stop PLC Command was Sent\"\r\n    | extend SourceDeviceAddress = tostring(parse_json(ExtendedProperties).SourceDeviceAddress)\r\n    | extend DestinationDeviceAddress = tostring(parse_json(ExtendedProperties).DestinationDeviceAddress)\r\n    | where ipv4_is_in_range(SourceDeviceAddress, \"192.168.117.0/24\") == false and SourceDeviceAddress !in (\"192.168.117.20\")\r\n    | extend DummyJoin=\"1\"\r\n    | project TimeGenerated, SourceDeviceAddress, DestinationDeviceAddress,DummyJoin);\r\nlet maint=(MaintWin\r\n| join kind=inner      (StopPlc) on DummyJoin \r\n| where TimeGenerated !between (startDate .. endDate)\r\n| project TimeGenerated, SourceDeviceAddress, DestinationDeviceAddress, WinName\r\n| extend DummyJoin2=\"1\");\r\nPrivEscal\r\n| join (maint) on DummyJoin2 | project Host_Name, TimeGenerated, SourceDeviceAddress, DestinationDeviceAddress, WinName, LastExternalIpAddress\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n",
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "reopenClosedIncident": false,
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "groupByEntities": [],
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": []
+          }
+        },
+        "customDetails": {
+          "MaintenaceWindow": "WinName"
+        },
+        "entityMappings": [
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "SourceDeviceAddress"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "DestinationDeviceAddress"
+              }
+            ]
+          },
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "identifier": "HostName",
+                "columnName": "Host_Name"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "LastExternalIpAddress"
+              }
+            ]
+          }
+        ],
+        "alertDetailsOverride": {
+          "alertDisplayNameFormat": "PLC Stop Command issued outside maintenance window: {{WinName}}"
+        },
+        "tactics": [],
+        "techniques": null,
+        "displayName": "AUTO DISABLED PLC Stop Command issued outside maintenance window",
+        "enabled": false,
+        "description": "The alert rule was disabled due to too many consecutive failures. Reason: Server is failing to execute the query of this rule, please verify the query. ",
+        "alertRuleTemplateName": null,
+        "lastModifiedUtc": "2022-04-23T16:36:36.1755563Z"
+      }
+    }
+  ]
+}
